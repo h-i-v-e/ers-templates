@@ -119,9 +119,17 @@ impl Parse for DisplayParts{
         };
         let src = match std::fs::read_to_string(&src) {
             Ok(src) => src,
-            Err(err) => return Err(
-                syn::Error::new(attr.span(), err.to_string())
-            )
+            Err(err) => {
+                let path = std::fs::canonicalize(std::path::Path::new("./")).unwrap();
+                return Err(
+                    syn::Error::new(
+                        attr.span(),
+                        format!(
+                            "unable to read {}, {}", path.join(src).to_str().unwrap(), err.to_string()
+                        )
+                    )
+                )
+            }
         };
         Ok(Self{
           name, lifetimes,
