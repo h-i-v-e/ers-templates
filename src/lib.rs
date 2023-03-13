@@ -26,7 +26,7 @@ fn write_str(reg: &Regex, out: &mut String, content: &str) {
 
 fn parse_template(content: & str, open: &str, close: &str)
     -> Result<proc_macro2::TokenStream> {
-    let esc = Regex::new(r"[?.\\$^]").unwrap();
+    let esc = Regex::new(r"[?.\\$^{}]").unwrap();
     let reg = Regex::new(format!(
         "{}=?.+?{}",
         escape(&esc, open).as_ref(),
@@ -174,6 +174,9 @@ mod tests {
     fn it_works() {
         println!("{}", parse_template(
             "werty $=self.test1^ $ for i in 0..5{ ^$=i^$}^",
-        "$", "^").unwrap())
+        "$", "^").unwrap());
+        println!("{}", parse_template(
+            "werty {=self.test1}",
+            "{", "}").unwrap())
     }
 }
