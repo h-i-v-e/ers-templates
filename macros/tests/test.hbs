@@ -1,0 +1,17 @@
+{{#with self}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{title}}</title>
+</head>
+<body>
+<p class="{{{class}}}" id="test">
+    testing
+    {{#each items}}
+        {{~this}}<br/>
+    {{/each}}
+</p>
+</body>
+</html>
+{{/with}}

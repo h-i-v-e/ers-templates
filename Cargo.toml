@@ -1,16 +1,10 @@
-[package]
-name = "ers-templates"
-version = "0.1.1"
-edition = "2021"
+[workspace]
+resolver="2"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[lib]
-proc-macro = true
+members = [
+    "helpers",
+    "macros"
+]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-proc-macro2 = "1.0.36"
-quote = "1.0.15"
+[workspace.dependencies]
 regex = "1.5.4"
-syn = {version = "1.0.86", features = ["full"]}

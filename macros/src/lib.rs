@@ -1,67 +1,18 @@
+use rusty_hbs_helpers::hbs_parser::Compiler;
 use proc_macro::TokenStream;
-use proc_macro2::Span;
 use quote::{quote, ToTokens};
-use std::borrow::Cow;
-use std::fmt::Write;
 use std::str::FromStr;
-use regex::{Captures, Regex};
 use syn::parse::{Parse, ParseStream};
 use syn::{parse_macro_input, DeriveInput, Ident, Result, LitStr, Token};
 use syn::spanned::Spanned;
 
-fn escape<'a>(reg: &'a Regex, content: &'a str) -> Cow<'a, str> {
-    reg.replace_all(
-        &content, |captures: &Captures| format!("\\{}", &captures[0])
-    )
-}
-
-fn write_str(reg: &Regex, out: &mut String, content: &str) {
-    if content.is_empty(){
-        return;
-    }
-    out.write_str("f.write_str(\"").unwrap();
-    out.write_str(escape(reg, content).as_ref()).unwrap();
-    out.write_str("\")?;").unwrap();
-}
-
-fn parse_template(content: & str, open: &str, close: &str)
-    -> Result<proc_macro2::TokenStream> {
-    let esc = Regex::new(r"[?.\\$^{}]").unwrap();
-    let reg = Regex::new(format!(
-        "{}=?.+?{}",
-        escape(&esc, open).as_ref(),
-        escape(&esc, close).as_ref()
-    ).as_ref()).unwrap();
-    let clean_reg = Regex::new("[\\\\\"]").unwrap();
-    let mut start : usize = 0;
-    let mut out = String::new();
-    for mtch in reg.find_iter(content){
-        write_str(&clean_reg, &mut out, &content[start..mtch.start()]);
-        if &content[mtch.start() + open.len()..mtch.start() + open.len() + 1] == "="{
-            out.write_str("Display::fmt(&(").unwrap();
-            out.write_str(&content[mtch.start() + open.len() + 1 .. mtch.end() - close.len()]).unwrap();
-            out.write_str("),f)?;").unwrap();
-        }
-        else{
-            out.write_str(&content[mtch.start() + open.len() .. mtch.end() - close.len()]).unwrap();
-        }
-        start = mtch.end();
-    }
-    write_str(&clean_reg, &mut out, &content[start..]);
-    Ok(proc_macro2::token_stream::TokenStream::from_str(out.as_str())?)
-}
-
 struct TemplateArgs{
-    src: Option<String>,
-    open_with: String,
-    close_with: String
+    src: Option<String>
 }
 
 impl Parse for TemplateArgs{
     fn parse(input: ParseStream) -> Result<Self> {
         let mut src : Option<String> = None;
-        let mut open_with: Option<String> = None;
-        let mut close_with: Option<String> = None;
         loop {
             let ident = input.parse::<Ident>()?;
             let label = ident.to_string();
@@ -69,26 +20,13 @@ impl Parse for TemplateArgs{
             if label == "path"{
                 src = Some(input.parse::<LitStr>()?.value());
             }
-            else if label == "open"{
-                open_with = Some(input.parse::<LitStr>()?.value());
-            }
-            else if label == "close"{
-                close_with = Some(input.parse::<LitStr>()?.value());
-            }
-            else{
-                return Err(syn::Error::new(
-                    Span::from(ident.span().unwrap()), "Invalid parameter, expected one of path, open or close"
-                ))
-            }
             if input.is_empty(){
                 break;
             }
             input.parse::<Token!(,)>()?;
         }
         Ok(TemplateArgs{
-            src,
-            open_with: open_with.unwrap_or("<?%".to_string()),
-            close_with: close_with.unwrap_or("%>".to_string()),
+            src
         })
     }
 }
@@ -133,11 +71,7 @@ impl Parse for DisplayParts{
         };
         Ok(Self{
           name, lifetimes,
-            content: Some(parse_template(
-                src.as_str(),
-                args.open_with.as_str(),
-                args.close_with.as_str()
-            )?)
+            content: Some(proc_macro2::token_stream::TokenStream::from_str(Compiler::new().compile(&src).as_str()).unwrap())
         })
     }
 }
@@ -164,19 +98,4 @@ pub fn make_renderable(raw: TokenStream) -> TokenStream{
             }
         }
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::parse_template;
-
-    #[test]
-    fn it_works() {
-        println!("{}", parse_template(
-            "werty $=self.test1^ $ for i in 0..5{ ^$=i^$}^",
-        "$", "^").unwrap());
-        println!("{}", parse_template(
-            "werty {=self.test1}",
-            "{", "}").unwrap())
-    }
 }
